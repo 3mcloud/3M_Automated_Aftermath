@@ -1,0 +1,8 @@
+name: nix
+
+dependencies:
+  - python=3.9
+  - numpy=1.19
+  - pandas=1.2
+  - pyodbc=4.0
+  - openpyxl=3.0
