@@ -6,6 +6,8 @@
 
 # IPEDS C only has the C20XX_C table 2012 and later, so other years are being left out
 
+# the archives containing these files can be found here: https://nces.ed.gov/ipeds/use-the-data/download-access-database
+
 files = [
     # {"file_name": "IPEDS200405.accdb", "year": 2004,
     #     "tables_of_interest": [b'C2004_A', b'HD2004']},
