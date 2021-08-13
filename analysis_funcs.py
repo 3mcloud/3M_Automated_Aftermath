@@ -157,6 +157,7 @@ def urm_students_large_inst(data_dict, year, method='absolute', min_students=500
 
     print(urm_students_large_inst(data, 2019, method='absolute'))
 
+
 def top_10_num_urm_students(data_dict, year, degree, method='absolute'):
     """
     returns top 10 universities that have most urm students with bachelor's degrees
@@ -207,6 +208,7 @@ def top_10_num_urm_students(data_dict, year, degree, method='absolute'):
     res.to_json(Path(r'results/top_10_unis_student.json'))  # save to json file - filename convention needed
 
     return res
+
 
 def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute', specific_universities=None):
     """
@@ -361,13 +363,61 @@ def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hd
     return top_10, dx_10
 
 
-# def specify_locations(geo_region_max, bea_region, state):
-#     state_list = []
+# TODO this function was migrated from explore_data.py on 20210805
+def urm_degrees_top_states(data_dict, year, key='state', method='absolute', top=100):
+    """
+    returns top states/regions with most BS in MATH degrees awarded to URM
+    :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
+    :param year: int (range 2011-2019)
+    :param key: str in ['state', 'region']
+    :param method: str in ['percentage', 'absolute']
+    :param top: int (number of top states to return)
+    :return: pd.DataFrame
+    """
+    assert year in np.arange(2011, 2020), 'This data is only available in years 2011-2019, inclusive!'
+    hd20xx = data_dict[f'HD{year}'].copy()
+    c20xxa = data_dict[f'C{year}_A'].copy()
 
-#     if state == 'all':
-#         return
-    
-#     return state_list
+    dx = c20xxa[c20xxa.CIPCODE.isin(list(CIP_CODES_OF_INTEREST.keys()))].copy()  # only relevant MATH cip codes
+    dx['URM'] = dx['CAIANT'] + dx['CBKAAT'] + dx['CHISPT'] + dx['CNHPIT']  # calculate under represented minority
+    dx = dx[dx.AWLEVEL == 5]  # only bachelor's degrees
+    dx = dx[dx.MAJORNUM == 1]  # only the first major (counting second majors means counting one person twice)
+
+    dx = dx.merge(hd20xx, how='left', on='UNITID')  # merge with university information
+
+    if key == 'state':
+        var_name = 'STABBR'
+    elif key == 'region':
+        var_name = 'OBEREG'
+    else:
+        ex = ValueError()
+        ex.strerror = "key must be either 'state' or 'region'"
+        raise ex  # :D
+
+    dx = dx.groupby(var_name, as_index=False)[['CTOTALT', 'URM']].sum()
+
+    if method == 'absolute':
+        res = dx.sort_values(by='URM', ascending=False).head(top)
+
+    if method == 'percentage':
+        dx['URM_PCT'] = 100 * dx['URM'] / dx['CTOTALT']
+        res = dx.sort_values(by='URM_PCT', ascending=False).head(top)
+
+    if key == 'region':  # provide region names
+        dtype_region = pd.CategoricalDtype(list(OBEREG.values()), ordered=True)
+        res['REGION'] = pd.Categorical.from_codes(codes=res['OBEREG'], dtype=dtype_region)
+
+    res = res.set_axis(np.arange(0, res.shape[0]), axis=0)
+
+    os.makedirs('results', exist_ok=True)
+    res.to_json(Path(r'results/top_10_states_or_regions.json'))  # save to json
+
+    return res
+
+
+# testing urm_degrees_top_states
+# top_10_states_2019 = urm_degrees_top_states(data, 2019, key='region', method='percentage', top=10)
+# print(top_10_states_2019)
 
 
 def history_best_unis_2019(data_dict, method='percentage', min_awards=5e4):
@@ -403,6 +453,48 @@ def history_best_unis_2019(data_dict, method='percentage', min_awards=5e4):
 # with open(pkl_data_fp, 'rb') as f:
 #     data = pickle.load(f)
 # result = history_best_unis_2019(data, method='percentage')
+
+
+# TODO this function was migrated from explore_data.py on 20210805
+def plot_history(result, method='percentage'):
+    """
+    result = history_best_unis_2019(data, method='percentage')
+    """
+    if method == 'percentage':
+        v = 'URM_PCT'
+    else:
+        v = 'URM'
+    d = {}
+    plt.figure(figsize=[10, 4])
+    for inst in result[2019].UNITID:
+        d[inst] = np.zeros((9, 2))
+        for i, year in enumerate(np.r_[2011:2020]):
+            d[inst][i, 0] = year
+            x = result[year]
+            try:  # in case that university is not in the previous data
+                d[inst][i, 1] = x[x.UNITID == inst][v]
+            except:
+                pass
+        plt.plot(d[inst][:, 0], d[inst][:, 1])
+    plt.legend(list(result[2019].INSTNM))
+
+    plt.xlim([2010.5, 2026])
+    plt.xticks(ticks=np.r_[2011:2020], labels=np.r_[2011:2020])
+    if method == 'percentage':
+        plt.ylabel("Percent of Degrees Awarded to URMs")
+        plt.ylim([0, 100])
+    else:
+        plt.ylabel("Number of Degrees Awarded to URMs")
+        plt.ylim([0, 100])
+
+
+    plt.xlabel('Year')
+    plt.title('History of Top 10 Universities in 2019 - Bachelors Awarded to URMs - All Math Majors')
+    plt.show()
+    return d
+
+
+# d = plot_history(result, method='absolute')
 
 
 if __name__ == '__main__':
