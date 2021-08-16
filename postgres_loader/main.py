@@ -14,9 +14,9 @@ log = logging.getLogger(__name__)
 
 DB_ENDPOINT = os.getenv('DB_ENDPOINT')
 DB_NAME = os.getenv('DB_NAME')
+DB_PORT = os.getenv('DB_PORT')
 DB_USER = os.getenv('SQLALCHEMY_DATABASE_USER')
 DB_PASS = os.getenv('SQLALCHEMY_DATABASE_PASS')
-DB_PORT = 5432
 
 
 def get_uri(db_username: str, db_password: str) -> str:
