@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import List
 
 from dotenv import load_dotenv
 import sqlalchemy
@@ -30,7 +31,7 @@ def create_engine(db_username: str, db_password: str):
     return sqlalchemy.create_engine(get_uri(db_username, db_password))
 
 
-def load_db_file(file_path: os.PathLike, year: int, tables_of_interest: list[bytes]):
+def load_db_file(file_path: os.PathLike, year: int, tables_of_interest: List[bytes]):
     tables = mdb_to_pandas(file_path, tables_of_interest=tables_of_interest)
     type(tables)
 
