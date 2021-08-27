@@ -5,6 +5,11 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from orm_models.constants import Base
+
+basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+sys.path.append(basedir)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -17,13 +22,20 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+# https://alembic.sqlalchemy.org/en/latest/cookbook.html#don-t-generate-empty-migrations-with-autogenerate
+
+def process_revision_directives(context, revision, directives):
+    if config.cmd_opts.autogenerate:
+        script = directives[0]
+        if script.upgrade_ops.is_empty():
+            directives[:] = []
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -43,6 +55,8 @@ def run_migrations_offline():
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        process_revision_directives=process_revision_directives,
+        compare_type=True
     )
 
     with context.begin_transaction():
@@ -64,7 +78,9 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata,
+            process_revision_directives=process_revision_directives,
+            compare_type=True
         )
 
         with context.begin_transaction():
