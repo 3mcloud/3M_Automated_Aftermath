@@ -92,7 +92,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
 
 #Line plot.  Probably not using at all as there is a plotly specific to react
 def visualize_line_time_series(data_frame, y_values, y_label, time_label):
-    #line plot visualization
+    '''line plot visualization'''
     data_tuples = list(zip(data_frame[time_label],y_values))
     frame = pd.DataFrame(data_tuples, columns=['Date',y_label])
     import plotly.express as px
@@ -155,12 +155,14 @@ def urm_students_large_inst(data_dict, year, method='absolute', min_students=500
     elif method == 'percentage':
         return c20xxc_g.sort_values(by='URM_PCT', ascending=False).head(10)[['INSTNM', 'CSTOTLT', 'URM', 'URM_PCT']].set_axis(np.arange(0, 10), axis=0)
 
+    ## Nader, this seems to be recursive?  Should this print statement be one tab back?  
+    # Also, it seems that we're not actually doing anything with urm_students_large_inst
     print(urm_students_large_inst(data, 2019, method='absolute'))
 
 
 def top_10_num_urm_students(data_dict, year, degree, method='absolute'):
     """
-    returns top 10 universities that have most urm students with bachelor's degrees
+    returns top 10 universities that have most urm students with degrees of interest
     :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
     :param year: int
     :param degree: list
