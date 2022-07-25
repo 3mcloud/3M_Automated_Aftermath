@@ -40,5 +40,7 @@ files = [
     {"file_name": "IPEDS201819.accdb", "year": 2018,
         "tables_of_interest": [b'C2018_A', b'C2018_B', b'C2018_C', b'HD2018']},
     {"file_name": "IPEDS201920.accdb", "year": 2019,
-        "tables_of_interest": [b'C2019_A', b'C2019_B', b'C2019_C', b'HD2019']}
+        "tables_of_interest": [b'C2019_A', b'C2019_B', b'C2019_C', b'HD2019']},
+    {"file_name": "IPEDS202021.accdb", "year": 2020,
+        "tables_of_interest": [b'c2020_A', b'C2020_B', b'C2020_C', b'HD2020']}
 ]
