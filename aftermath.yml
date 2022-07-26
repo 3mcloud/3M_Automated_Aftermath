@@ -1,4 +1,4 @@
-name: aftermath3
+name: aftermath4
 channels:
 - defaults
 - conda-forge
@@ -13,3 +13,4 @@ dependencies:
 - pyodbc
 - fastapi
 - pickle5=0.0.11
+- psycopg2

@@ -143,7 +143,7 @@ def find_larger_universities(data_dict, year, min_awards=1e4) -> pd.DataFrame:
 
     return larger_uni
 
-def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute', specific_universities=None):
+def urm_degrees_top_insts(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute', specific_universities=None):
     """
     returns top 10 institutions that have highest "number of awards/degrees" for URM students in math with cip breakdown
     :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
@@ -261,7 +261,7 @@ def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hd
 
 
     dx_sum = dx.groupby('UNITID', as_index=False).sum()  # total conferral for the selected cip codes
-    dx_sum = dx_sum[dx_sum.UNITID.isin(list(major_uni))]  # filter to only large universities
+    dx_sum = dx_sum[dx_sum.UNITID.isin(list(unis))]  # filter to only large universities
     #dx_sum = dx_sum[dx_sum.CTOTALT > 10]  # filter to only universities that awarded at least 10 BS in CIPs
 
     dx_sum = dx_sum.merge(hd, how='left', on='UNITID')
@@ -294,6 +294,58 @@ def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hd
     top_10.to_json(Path(r'results/top_10_unis_degree.json'))  # save to json file -  filename convention needed
     dx_10.to_json(Path(r'results/top_10_unis_degree_detail.json'))  # save to json file
     return top_10, dx_10
+
+def urm_degrees_top_states(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, key='state', method='absolute', top=10):
+    """
+    returns top states/regions with most BS in MATH degrees awarded to URM of specified type
+    :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
+    :param year: int (range 2011-2019)
+    :param key: str in ['state', 'region']
+    :param method: str in ['percentage', 'absolute']
+    :param top: int (number of top states to return)
+    :return: pd.DataFrame
+    """
+    #assert year in np.arange(2011, 2021), 'This data is only available in years 2011-2020, inclusive!'
+    assert year in np.arange(2011, 2020), 'This data is only available in years 2011-2019, inclusive!'
+    hd20xx = data_dict[f'HD{year}'].copy()
+    c20xxa = data_dict[f'C{year}_A'].copy()
+
+    dx = c20xxa[c20xxa.CIPCODE.isin(list(CIP_CODES_OF_INTEREST.keys()))].copy()  # only relevant MATH cip codes
+    dx['URM'] = dx['CAIANT'] + dx['CBKAAT'] + dx['CHISPT'] + dx['CNHPIT']  # calculate under represented minority
+    dx = dx[dx.AWLEVEL == 5]  # only bachelor's degrees
+    dx = dx[dx.MAJORNUM == 1]  # only the first major (counting second majors means counting one person twice)
+
+    dx = dx.merge(hd20xx, how='left', on='UNITID')  # merge with university information
+
+    if key == 'state':
+        var_name = 'STABBR'
+    elif key == 'region':
+        var_name = 'OBEREG'
+    else:
+        ex = ValueError()
+        ex.strerror = "key must be either 'state' or 'region'"
+        raise ex  # :D
+
+    dx = dx.groupby(var_name, as_index=False)[['CTOTALT', 'URM']].sum()
+
+    if method == 'absolute':
+        res = dx.sort_values(by='URM', ascending=False).head(top)
+
+    if method == 'percentage':
+        dx['URM_PCT'] = 100 * dx['URM'] / dx['CTOTALT']
+        res = dx.sort_values(by='URM_PCT', ascending=False).head(top)
+
+    if key == 'region':  # provide region names
+        dtype_region = pd.CategoricalDtype(list(OBEREG.values()), ordered=True)
+        res['REGION'] = pd.Categorical.from_codes(codes=res['OBEREG'], dtype=dtype_region)
+
+    res = res.set_axis(np.arange(0, res.shape[0]), axis=0)
+
+    os.makedirs('results', exist_ok=True)
+    res.to_json(Path(r'results/top_10_states_or_regions.json'))  # save to json
+
+    return res
+
 
 
 if __name__ == '__main__':
@@ -331,8 +383,14 @@ if __name__ == '__main__':
         data = pickle.load(f)
     print('data load time {:.2f} seconds'.format(time.time() - start))
 
-    #for key, value in data.items():
-    #    print(key, ' : ', value)
+    #hd20xx = data[f'HD{2019}'].copy()
+    #c20xxa = data[f'C{2019}_A'].copy()
+    for key in data.keys():
+        print(key)
+
+    hd2019 = data['HD2019']
+    print(hd2019.keys())
+    #print(data[HD2019])
 
     # pandas display options
     pd.set_option('display.max_columns', None)
@@ -340,9 +398,9 @@ if __name__ == '__main__':
     pd.set_option('display.width', 320)
 
     #geography = None
-    geography = specify_locations(geo_region, obereg, states)
+    #geography = specify_locations(geo_region, obereg, states)
 
-    #best_unis, best_unis_detail = urm_degrees(data, year_N, citizen, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute')
+    #best_unis, best_unis_detail = urm_degrees_top_insts(data, year_N, citizen, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute')
 
     #print(best_unis)
     #print(best_unis_detail)
