@@ -1,20 +1,24 @@
-import { AppBar, Toolbar, IconButton, Typography} from '@material-ui/core';
-import MenuIcon from '@material-ui/icons/Menu';
+import { React } from 'react';
+import { AppBar } from '@material-ui/core';
+import SelectSearch from './SearchSelect'
 
-const Appbar = () =>{
+const Appbar = (props) =>{
     return (
-        <div >
-          <AppBar position="static">
-            <Toolbar variant="dense">
-              <IconButton edge="start" color="inherit" aria-label="menu">
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" color="inherit">
-                MAUI
-              </Typography>
-            </Toolbar>
+          <AppBar position="static"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            backgroundColor: "tan",
+          }}>
+               <SelectSearch
+               style-={{
+                width: "100%",
+                maxWidth: 600,
+                mx: "auto"
+               }}
+               queryType={props.queryType} setQueryType={props.setQueryType}
+                ></SelectSearch>
           </AppBar>
-        </div>
       );
 }
 

@@ -8,11 +8,13 @@ import SelectSearch from './components/SearchSelect';
 function App() {
   const [queryType, setQueryType] = useState("");
   return (
-    <div className="App">
+    <div style={{
 
-        <Appbar></Appbar>
-        <SelectSearch queryType={queryType} setQueryType={setQueryType}></SelectSearch>
-        <QueryInputs queryType={queryType}></QueryInputs>
+                }}>
+
+        <Appbar setQueryType={setQueryType} queryType={queryType}></Appbar>
+        <div style={{height: 10}}></div>
+        <QueryInputs queryType={queryType}></QueryInputs> 
         {/* <DataPlot></DataPlot> */}
     </div>
   );
