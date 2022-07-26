@@ -3,14 +3,14 @@ import os
 import numpy as np
 import sys
 import pandas as pd
-import pickle
+import pickle5 as pickle
 import time
 import pyodbc
 from pathlib import Path
 from typing import List
 import matplotlib.pyplot as plt
 from typing import Union
-from fastapi import FastAPI
+#from fastapi import FastAPI
 
 
 
@@ -92,11 +92,33 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     
     return parser.parse_args(args[1:])
 
-def specify_locations(geo_region, obereg, states = None):
-    '''Function to limit analyzed data to only geographic regions of interest.  Returns a list of states to be included.'''
+def specify_locations(geo_region, obereg = None, states = None):
+    '''Function to limit analyzed data to only geographic regions of interest.  Returns a list of states to be included, inclusively.
+    If BEA regions are selected, this overrides geo_region limiters, and if states are included it overrides other limiters.'''
 
     incl_states = []
-    if states is not None:
+
+    if geo_region == 'all':
+        incl_states = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA',
+                       'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM',
+                       'NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA',
+                       'WV','WI','WY','AS','FM','GU','MH','MP','PW','PR','VI']
+    elif geo_region == 'states':
+        incl_states = ['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA',
+                       'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM',
+                       'NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA',
+                       'WV','WI','WY']
+    elif geo_region == 'contiguous_48':
+        incl_states = ['AL','AZ','AR','CA','CO','CT','DE','DC','FL','GA','ID','IL','IN','IA',
+                       'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM',
+                       'NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA',
+                       'WV','WI','WY']
+    else:
+        incl_states = []
+
+    
+    if obereg is not None:
+        print(OBEREG[0])
 
 
 
@@ -136,16 +158,23 @@ if __name__ == '__main__':
         data = pickle.load(f)
     print('data load time {:.2f} seconds'.format(time.time() - start))
 
+    #for key, value in data.items():
+    #    print(key, ' : ', value)
+
+    for key in data.keys():
+        print(key)
+
+
     # pandas display options
     pd.set_option('display.max_columns', None)
-    pd.set_option('max_colwidth', None)
+    pd.set_option('max_colwidth', 20)
     pd.set_option('display.width', 320)
 
     #geography = None
     geography = specify_locations(geo_region, obereg, states)
 
-    best_unis, best_unis_detail = urm_degrees(data, year_N, citizen, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute')
+    #best_unis, best_unis_detail = urm_degrees(data, year_N, citizen, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute')
 
     #print(best_unis)
-    print(best_unis_detail)
+    #print(best_unis_detail)
     #(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute', specific_universities=None):
