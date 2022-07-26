@@ -83,7 +83,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     parser.add_argument('--degree_cip', default='all', type=str, help='Concentration-type of degree granted')
     parser.add_argument('--university_type', default='all', type=str, help='University type', choices = ['all','public','private not-for-profit', 'private for-profit'])
     parser.add_argument('--uni_degree_type', default='any', type=str, help='Highest degree granted by university', choices=['PhD', 'MS', 'BS', 'A', 'any'])
-    parser.add_argument('--geo_region_max', default='all', type=str, help='Largest geographic region of the US', choices=['all', 'states', 'contiguous_48'])
+    parser.add_argument('--geo_region_max', default='all', type=str, help='Largest geographic region of the US', choices=['all', 'states+dc', 'contiguous_48'])
     parser.add_argument('--bea_region', default='all', nargs='+', 
                         type=str, help='BEA-designated regions of the 50 states ',
                         choices=['all', 'New England', 'Mid East', 'Great Lakes', 'Plains',
@@ -119,8 +119,181 @@ def specify_locations(geo_region, obereg = None, states = None):
     
     if obereg is not None:
         print(OBEREG[0])
+        print(OBEREG[2])
+
+def find_larger_universities(data_dict, year, min_awards=1e4) -> pd.DataFrame:
+    """
+    finds the universities that awarded at least min_awards number of degrees or certificates (all levels)
+    :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
+    :param year : int
+    :param min_awards: int or float - minimum number of degrees awarded
+    :return: pandas.core.series.Series containing UNITID of major universities
+    """
+    dx = data_dict[f'C{year}_A'].copy()
+    #Nader, your code splits this line into two.  Was there any reason for this?
+
+    dx.CIPCODE = dx.CIPCODE.astype('float')
+    dx = dx[dx.CIPCODE.isin(list(np.arange(0, 100)))]  # because of sum, do not re-count cip code sub-categories
+
+    dx = dx[dx.MAJORNUM == 1]  # count only the first majors, for now
+
+    # find the unitid of large universities as defined by those that awarded at least min_awards BS degrees
+    uni_g = dx.groupby(by='UNITID', as_index=False).sum()
+    larger_uni = uni_g[uni_g.CTOTALT > min_awards]['UNITID']
+
+    return larger_uni
+
+def urm_degrees(data_dict, year, citizenship, gender, degree, cip, geography, hdeg, uni_type, min_awards, method='absolute', specific_universities=None):
+    """
+    returns top 10 institutions that have highest "number of awards/degrees" for URM students in math with cip breakdown
+    :param data_dict: dict containing (key= table_name, value=table as pd.DataFrame)
+    :param year: int
+    :param citizenship: string
+    :param gender: string
+    :param cip:
+    :param geography:
+    :param hdeg:
+    :param method: str in ['absolute', 'percentage']
+    :param specific_universities : pd.Series list of universities to limit search - default None for all inclusive search
+    :return: pd.DataFrame, pd.DataFrame
+    """
+
+    #assert year in np.arange(2011, 2021), 'This data is only available in years 2011-2020, inclusive!'
+    assert year in np.arange(2011, 2020), 'This data is only available in years 2011-2019, inclusive!'
+
+    hd20xx = data_dict[f'HD{year}'].copy()
+    c20xxa = data_dict[f'C{year}_A'].copy()
+
+    if specific_universities is not None:
+        unis = specific_universities
+    else:
+        unis = find_larger_universities(data_dict, year, min_awards)  # include all universities
+
+    #print('hdkeys', hd20xx.keys())
+    #print('c20keys', c20xxa.keys())
+
+    cip_list = []
+    #identify all selected cip codes
+    #print(cip)
+    for major_group in cip:
+        #print('major_group', major_group.keys())
+        cip_list.extend(x for x in major_group.keys())
+
+    #Filter by CIP codes selected
+    dx = c20xxa[c20xxa.CIPCODE.isin(cip_list)].copy()  # only relevant cip codes
+
+    # calculate under-represented minority for different groupings
+    dx['URM'] = dx['CAIANT'] + dx['CBKAAT'] + dx['CHISPT'] + dx['CNHPIT'] 
+    dx['URM_female'] = dx['CAIANW'] + dx['CBKAAW'] + dx['CHISPW'] + dx['CNHPIW'] 
+    dx['URM_male'] = dx['CAIANM'] + dx['CBKAAM'] + dx['CHISPM'] + dx['CNHPIM'] 
+    dx['URM_female_nonresident'] = dx['CNRALW']
+    dx['URM_male_nonresident'] = dx['CNRALM']
+    dx['URM_nonresident'] = dx['CNRALW'] + dx['CNRALM']
+    dx['URM_female_US'] = dx['URM_female'] - dx['URM_female_nonresident']
+    dx['URM_male_US'] = dx['URM_male'] - dx['URM_male_nonresident']
+    dx['URM_US'] = dx['URM'] - dx['URM_nonresident']
 
 
+    #filter by selected degrees
+    AWLEVELS = []
+    if 'BS' in degree:
+        AWLEVELS.append(5)
+    if 'A' in degree:
+        AWLEVELS.append(3)
+    if 'MS' in degree:
+        AWLEVELS.append(7)
+    if 'PhD' in degree:
+        AWLEVELS.extend([17, 18, 19])
+
+    #Filter by selected degrees
+    dx = dx[dx.AWLEVEL == any(AWLEVELS)]
+    #dx = dx[dx.AWLEVEL == 5]  # only bachelor's degrees
+    
+    dx = dx[dx.MAJORNUM == 1]  # only the first major (counting second majors means counting one person twice) #Talk with Kyndra about preferences
+
+    #Filter by gender and citizenship if selected
+    if gender == 'all' and citizenship == 'all':
+        subgroup_selector = 'URM'
+    elif gender == 'male' and citizenship == 'all':
+        subgroup_selector = 'URM_male'
+    elif gender == 'female' and citizenship == 'all':
+        subgroup_selector = 'URM_female'
+    elif gender == 'all' and 'citizenship' == 'US':
+        subgroup_selector = 'URM_US'
+    elif gender == 'male' and citizenship == 'US':
+        subgroup_selector = 'URM_male_US'
+    elif gender == 'female' and citizenship == 'US':
+        subgroup_selector = 'URM_female_US'
+    elif gender == 'all' and 'citizenship' == 'non-resident':
+        subgroup_selector = 'URM_nonresident'
+    elif gender == 'male' and citizenship == 'non-resident':
+        subgroup_selector = 'URM_male_nonresident'
+    elif gender == 'female' and citizenship == 'non-resident':
+        subgroup_selector = 'URM_female_nonresident'
+    else:
+        print('Submitted gender specification or citizenship specification not in the data')
+
+    #Filter by highest degree conferred by university
+    if hdeg == 'PhD':
+        hd = hd20xx[hd20xx.HDEGOFR1==11]+ hd20xx[hd20xx.HDEGOFR1==12] + hd20xx[hd20xx.HDEGOFR1==13] + hd20xx[hd20xx.HDEGOFR1==14]
+    elif hdeg == 'MS':
+        hd = hd20xx[hd20xx.HDEGOFR1==20]
+    elif hdeg == 'BS':
+        hd = hd20xx[hd20xx.HDEGOFR1==30]
+    elif hdeg == 'A':
+        hd = hd20xx[hd20xx.HDEGOFR1==40]
+    elif hdeg == 'any':
+        hd = hd20xx
+
+    #Filter by uni_type
+    sector = []
+    for utype in uni_type:
+        if utype == 'public':
+            sector.extend([1,4,7])
+        elif utype == 'private not-for-profit':
+            sector.extend([2, 5, 8])
+        elif utype == 'private for-profit':
+            sector.extend([3,6,9])
+
+    hd = hd[hd.SECTOR == any(sector)]
+
+    #Filter by geography?
+
+
+    dx_sum = dx.groupby('UNITID', as_index=False).sum()  # total conferral for the selected cip codes
+    dx_sum = dx_sum[dx_sum.UNITID.isin(list(major_uni))]  # filter to only large universities
+    #dx_sum = dx_sum[dx_sum.CTOTALT > 10]  # filter to only universities that awarded at least 10 BS in CIPs
+
+    dx_sum = dx_sum.merge(hd, how='left', on='UNITID')
+    dx_sum['URM_PCT'] = 100 * dx_sum['URM'] / dx_sum['CTOTALT']
+
+    if method == 'absolute':
+        top_10 = dx_sum.sort_values(by='URM', ascending=False).head(10)[['UNITID', 'INSTNM', 'CTOTALT', subgroup_selector]]
+        top_10 = top_10.set_axis(np.arange(0, top_10.shape[0]), axis=0)
+        dx_10 = dx[dx.UNITID.isin(top_10.UNITID)]
+        dx_10 = dx_10[dx_10.URM != 0]
+        dx_10 = dx_10.merge(hd20xx, how='left', on='UNITID')
+        # print(dx_10.columns)
+        dx_10 = dx_10[['UNITID', 'CIPCODE', 'INSTNM', 'CTOTALT', 'URM']].sort_values(by=['UNITID', 'CIPCODE'])
+        dx_10.set_axis(np.arange(0, dx_10.shape[0]), axis=0, inplace=True)
+
+    elif method == 'percentage':
+        top_10 = dx_sum.sort_values(by='URM_PCT', ascending=False).head(10)[['UNITID', 'INSTNM', 'CTOTALT', 'URM', 'URM_PCT']]
+        top_10 = top_10.set_axis(np.arange(0, top_10.shape[0]), axis=0)
+        dx_10 = dx[dx.UNITID.isin(top_10.UNITID)].copy()
+        dx_10 = dx_10[dx_10.URM != 0]
+        dx_10['URM_PCT'] = 100 * dx_10['URM'] / dx_10['CTOTALT']
+        dx_10 = dx_10.merge(hd20xx, how='left', on='UNITID')[['UNITID', 'CIPCODE', 'INSTNM', 'CTOTALT', 'URM', 'URM_PCT']].sort_values(by=['UNITID', 'CIPCODE'])
+        dx_10.set_axis(np.arange(0, dx_10.shape[0]), axis=0, inplace=True)
+
+    else:  # cute management :D
+        top_10, dx_10 = None, None
+
+    # save results to disk in json for ethan
+    os.makedirs('results', exist_ok=True)
+    top_10.to_json(Path(r'results/top_10_unis_degree.json'))  # save to json file -  filename convention needed
+    dx_10.to_json(Path(r'results/top_10_unis_degree_detail.json'))  # save to json file
+    return top_10, dx_10
 
 
 if __name__ == '__main__':
@@ -160,10 +333,6 @@ if __name__ == '__main__':
 
     #for key, value in data.items():
     #    print(key, ' : ', value)
-
-    for key in data.keys():
-        print(key)
-
 
     # pandas display options
     pd.set_option('display.max_columns', None)
