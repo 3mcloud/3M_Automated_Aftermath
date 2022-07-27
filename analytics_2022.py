@@ -389,7 +389,11 @@ if __name__ == '__main__':
         print(key)
 
     hd2019 = data['HD2019']
-    print(hd2019.keys())
+    print(type(hd2019))
+    print(hd2019.info())
+    hdfields = pd.DataFrame(eval(hd2019))
+
+    print(hdfields.keys)
     #print(data[HD2019])
 
     # pandas display options
